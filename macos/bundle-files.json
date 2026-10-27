@@ -1,0 +1,7 @@
+{
+  "files": ["app.py", "desktop.py", "trade_valuator.py", "fantasy_lib.py", "version.py", "updates.py", "VERSION", "release.json", "LICENSE", "requirements.txt", "fixtures/demo.json", "scripts/local.py"],
+  "directories": {
+    "evaluator": [".py"],
+    "static": [".js", ".css", ".html", ".png", ".svg"]
+  }
+}

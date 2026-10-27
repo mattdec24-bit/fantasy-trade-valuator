@@ -1,0 +1,47 @@
+{
+  "services": {
+    "trade-room": {
+      "build": {
+        "context": "."
+      },
+      "ports": [
+        "127.0.0.1:${TRADE_ROOM_PORT:-8000}:8000"
+      ],
+      "environment": {
+        "APP_PUBLIC_ORIGIN": "",
+        "LLM_ENABLED": "false",
+        "LLM_PROVIDER": "",
+        "LLM_API_KEY": ""
+      },
+      "command": [
+        "python",
+        "scripts/container_start.py",
+        "--source",
+        "${TRADE_ROOM_SOURCE:-demo}"
+      ],
+      "read_only": true,
+      "tmpfs": [
+        "/tmp:rw,noexec,nosuid,size=32m"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "restart": "no",
+      "user": "${TRADE_ROOM_UID:-10001}:${TRADE_ROOM_GID:-10001}",
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "./.local/config.json",
+          "target": "/run/trade-room-config.json",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ]
+    }
+  }
+}

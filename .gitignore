@@ -1,0 +1,29 @@
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+data/
+uploads/
+*.sqlite
+*.sqlite3
+*.db
+.DS_Store
+node_modules/
+dist/
+build/
+# Private screenshots, captures, and deployment overrides must stay local.
+private/
+.local/
+.envrc
+*.log
+coverage.xml
+.coverage
+# Release assets belong outside the source tree, even if copied here by mistake.
+*.dmg
+*.app/
+SHA256SUMS

@@ -1,0 +1,7 @@
+{
+  "services": {
+    "trade-room": {
+      "image": "trade-room-local"
+    }
+  }
+}

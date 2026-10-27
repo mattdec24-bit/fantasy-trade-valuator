@@ -1,0 +1,95 @@
+name: Prepare unsigned macOS release
+
+# Manual only. This workflow creates a DRAFT, never publishes it.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag matching VERSION (for example v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-preparation
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      LLM_ENABLED: 'false'
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Require committed, tagged, configured source
+        run: python scripts/release_preflight.py --tag "$RELEASE_TAG" --repository "$GITHUB_REPOSITORY"
+      - name: Install test tools
+        run: |
+          brew install tesseract
+          python -m pip install -r requirements.txt
+      - name: Offline source preflight
+        run: python scripts/preflight.py
+      - name: Build unsigned app and DMG outside source
+        run: python scripts/build_macos.py --output "$RUNNER_TEMP/release" --cache-dir "$RUNNER_TEMP/build-cache"
+      - name: Mount and verify release
+        # Native HTTP/Vision smoke and shutdown. Rendered UI QA is a manual gate.
+        run: python scripts/verify_release.py "$RUNNER_TEMP/release"
+      - name: Upload only reviewed release asset types
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unsigned-macos-release
+          path: |
+            ${{ runner.temp }}/release/*.dmg
+            ${{ runner.temp }}/release/SHA256SUMS
+            ${{ runner.temp }}/release/BUILD.json
+            ${{ runner.temp }}/release/verification/*.json
+          if-no-files-found: error
+          retention-days: 14
+
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Owner must configure required reviewers for this environment before use.
+    environment: release
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Download this run's immutable build artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: unsigned-macos-release
+          path: ${{ runner.temp }}/release
+      - name: Check source and checksums before creating a draft
+        run: |
+          python scripts/release_preflight.py --tag "$RELEASE_TAG" --repository "$GITHUB_REPOSITORY"
+          cd "$RUNNER_TEMP/release"
+          sha256sum -c SHA256SUMS
+      - name: Create draft with versioned DMG, provenance and checksum assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "Trade Room $RELEASE_TAG (unsigned macOS arm64)" --notes-file .github/RELEASE_NOTES.md \
+            "$RUNNER_TEMP"/release/*.dmg "$RUNNER_TEMP/release/BUILD.json" "$RUNNER_TEMP/release/SHA256SUMS"

@@ -1,0 +1,3 @@
+# The server and evaluation engine use only Python's standard library.
+# Pillow validates and sanitizes images before local Tesseract OCR.
+Pillow==12.3.0
